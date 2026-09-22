@@ -449,20 +449,20 @@ export default function App() {
       <div className="orb orb-2" aria-hidden="true" />
       <div className="orb orb-3" aria-hidden="true" />
 
-      <header className="topbar">
-        <a className="brand" href="/" onClick={(e) => e.preventDefault()}>
-          <span className="brand-mark">
-            <Icon name="globe" size={18} />
-          </span>
-          World Explorer
-        </a>
-        <span className="topbar-meta">
-          <span className="dot" /> Live data · weather, wiki & geocoding
-        </span>
-      </header>
-
       <section className="hero">
         <HeroBg gallery={gallery} failed={galleryFailed} />
+
+        <header className="topbar">
+          <a className="brand" href="/" onClick={(e) => e.preventDefault()}>
+            <span className="brand-mark">
+              <Icon name="globe" size={18} />
+            </span>
+            World Explorer
+          </a>
+          <span className="topbar-meta">
+            <span className="dot" /> Live data · weather, wiki & geocoding
+          </span>
+        </header>
 
         <div className="hero-content">
           <span className="eyebrow">
