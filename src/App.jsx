@@ -5,16 +5,17 @@ import {
   getWeather,
   getWiki,
   getLandmarks,
-  getGallery,
   weatherInfo,
   formatNumber,
   formatArea
 } from "./api.js";
 
+const HERO_IMAGE =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Positano_%28Italy%29_03.jpg/1920px-Positano_%28Italy%29_03.jpg";
+
 const ICONS = {
   search: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
   pin: <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></>,
-  sparkles: <><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z" /></>,
   users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
   area: <><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></>,
   grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /></>,
@@ -30,6 +31,7 @@ const ICONS = {
   map: <><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21 1 6" /><line x1="8" y1="3" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="21" /></>,
   flame: <><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></>,
   arrow: <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
+  menu: <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" /></>,
   alert: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></>,
   cloud: <><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></>,
   layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>
@@ -53,23 +55,6 @@ function Icon({ name, size = 18, className = "" }) {
     </svg>
   );
 }
-
-const POPULAR = ["Paris", "Tokyo", "India", "New York", "Cairo", "Brazil"];
-
-const GALLERY = [
-  "Eiffel Tower",
-  "Taj Mahal",
-  "Colosseum",
-  "Machu Picchu",
-  "Great Wall of China",
-  "Statue of Liberty",
-  "Sydney Opera House",
-  "Mount Fuji",
-  "Oia, Greece",
-  "Burj Khalifa",
-  "Giza pyramid complex",
-  "Christ the Redeemer (statue)"
-];
 
 function Suggestion({ item, onPick }) {
   return (
@@ -231,37 +216,6 @@ function ResultsSkeleton() {
   );
 }
 
-function HeroBg({ gallery, failed }) {
-  return (
-    <div className="hero-bg" aria-hidden="true">
-      {failed ? null : gallery.length ? (
-        <div className="pinterest-grid">
-          {gallery.map((p) => (
-            <img
-              key={p.title}
-              className="hero-bg-pin"
-              src={p.image}
-              alt=""
-              loading="lazy"
-              decoding="async"
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="pinterest-grid">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={i}
-              className="sk hero-bg-pin hero-bg-sk"
-              style={{ height: `${120 + ((i * 53) % 170)}px` }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Showcase() {
   const items = [
     {
@@ -309,20 +263,9 @@ export default function App() {
   const [wiki, setWiki] = useState(null);
   const [landmarks, setLandmarks] = useState([]);
   const [error, setError] = useState("");
-  const [gallery, setGallery] = useState([]);
-  const [galleryFailed, setGalleryFailed] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const debounce = useRef(null);
   const resultsRef = useRef(null);
-
-  useEffect(() => {
-    let alive = true;
-    getGallery(GALLERY)
-      .then((g) => alive && setGallery(g))
-      .catch(() => alive && setGalleryFailed(true));
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!loading && place) {
@@ -445,83 +388,86 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className="orb orb-1" aria-hidden="true" />
-      <div className="orb orb-2" aria-hidden="true" />
-      <div className="orb orb-3" aria-hidden="true" />
-
       <section className="hero">
-        <HeroBg gallery={gallery} failed={galleryFailed} />
+        <div className="hero-media" aria-hidden="true">
+          {photoFailed ? <div className="hero-media-fallback" /> : (
+            <img
+              className="hero-photo"
+              src={HERO_IMAGE}
+              alt=""
+              onError={() => setPhotoFailed(true)}
+            />
+          )}
+          <div className="hero-scrim" />
+        </div>
 
-        <header className="topbar">
+        <header className="nav">
           <a className="brand" href="/" onClick={(e) => e.preventDefault()}>
             <span className="brand-mark">
-              <Icon name="globe" size={18} />
+              <Icon name="globe" size={17} />
             </span>
             World Explorer
           </a>
-          <span className="topbar-meta">
-            <span className="dot" /> Live data · weather, wiki & geocoding
-          </span>
+          <nav className="nav-links" aria-label="Primary">
+            <a className="nav-link active" href="#explore" aria-current="page">
+              Explore
+            </a>
+            <a className="nav-link" href="#destinations">
+              Destinations
+            </a>
+            <a className="nav-link" href="#about">
+              About
+            </a>
+          </nav>
+          <div className="nav-actions">
+            <button className="nav-icon-btn" type="button" aria-label="Search">
+              <Icon name="search" size={18} />
+            </button>
+            <button className="nav-icon-btn" type="button" aria-label="Open menu">
+              <Icon name="menu" size={19} />
+            </button>
+          </div>
         </header>
 
-        <div className="hero-content">
-          <span className="eyebrow">
-            <Icon name="sparkles" size={14} />
-            Countries, cities and everything in between
-          </span>
-          <h1>
-            Discover any place
-            <br />
-            <em>on Earth.</em>
+        <div className="hero-inner">
+          <span className="eyebrow">Real places. Richer stories.</span>
+          <h1 className="hero-title">
+            <span className="title-heavy">Explore the World,</span>
+            <span className="title-lite">One Search Away.</span>
           </h1>
           <p className="subtitle">
-            Population, live weather, languages, currency, timezones and the most
-            famous landmarks — all in one beautiful view.
+            Discover cities, landmarks, culture, food, weather and more&nbsp;— all in
+            one place. Your next adventure starts here.
           </p>
 
-          <div className="search-shell">
-            <form className="searchbox" onSubmit={onSearch} role="search">
-              <span className="search-icon">
-                <Icon name="search" size={19} />
-              </span>
-              <input
-                value={query}
-                onChange={(e) => handleInput(e.target.value)}
-                onFocus={() => query.trim() && setOpen(true)}
-                onBlur={() => setTimeout(() => setOpen(false), 150)}
-                placeholder="Search a country or city… e.g. Japan, Lisbon"
-                aria-label="Search place"
-              />
-              <button type="submit" disabled={loading}>
-                {loading ? <span className="btn-spin" /> : null}
-                <span className="btn-label">{loading ? "Exploring" : "Explore"}</span>
-              </button>
-              {open && suggestions.length > 0 && (
-                <div className="suggestions">
-                  {suggestions.map((s) => (
-                    <Suggestion key={s.id} item={s} onPick={pickCity} />
-                  ))}
-                </div>
-              )}
-            </form>
-
-            <div className="quick">
-              <span className="quick-label">Popular</span>
-              {POPULAR.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className="chip"
-                  onClick={() => {
-                    setQuery(p);
-                    explore(p);
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
+          <form className="hero-search" onSubmit={onSearch} role="search">
+            <span className="hero-search-icon">
+              <Icon name="search" size={19} />
+            </span>
+            <input
+              value={query}
+              onChange={(e) => handleInput(e.target.value)}
+              onFocus={() => query.trim() && setOpen(true)}
+              onBlur={() => setTimeout(() => setOpen(false), 150)}
+              placeholder="Search for a city, country or place..."
+              aria-label="Search place"
+            />
+            <button
+              className="hero-submit"
+              type="submit"
+              disabled={loading}
+              aria-label="Explore your destination"
+            >
+              {loading ? <span className="btn-spin" /> : <Icon name="arrow" size={18} />}
+            </button>
+            {open && suggestions.length > 0 && (
+              <div className="suggestions">
+                {suggestions.map((s) => (
+                  <Suggestion key={s.id} item={s} onPick={pickCity} />
+                ))}
+              </div>
+            )}
+          </form>
 
           {error && (
             <p className="error">
