@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  HashRouter,
+  Link,
+  Route,
+  Routes,
+  useNavigate,
+  useSearchParams
+} from "react-router-dom";
+import {
   searchCities,
   getCountry,
   getWeather,
@@ -216,69 +224,20 @@ function ResultsSkeleton() {
   );
 }
 
-function Showcase() {
-  const items = [
-    {
-      tone: "i-indigo",
-      icon: "layers",
-      title: "Country & city intelligence",
-      text: "Population, area, density, languages, currency, timezone and borders — pulled together in one view."
-    },
-    {
-      tone: "i-cyan",
-      icon: "cloud",
-      title: "Live weather & forecast",
-      text: "Right-now conditions with a 3-day outlook, powered by Open-Meteo for the exact coordinates."
-    },
-    {
-      tone: "i-violet",
-      icon: "map",
-      title: "Famous places nearby",
-      text: "The most-read Wikipedia articles around the location, ranked by real page views."
-    }
-  ];
-  return (
-    <section className="showcase">
-      {items.map((it) => (
-        <article className="feature" key={it.title}>
-          <div className={`feature-icon ${it.tone}`}>
-            <Icon name={it.icon} size={20} />
-          </div>
-          <h4>{it.title}</h4>
-          <p>{it.text}</p>
-        </article>
-      ))}
-    </section>
-  );
-}
-
-export default function App() {
+function HomePage() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [place, setPlace] = useState(null);
-  const [country, setCountry] = useState(null);
-  const [weather, setWeather] = useState(null);
-  const [wiki, setWiki] = useState(null);
-  const [landmarks, setLandmarks] = useState([]);
-  const [error, setError] = useState("");
   const [photoFailed, setPhotoFailed] = useState(false);
   const debounce = useRef(null);
-  const resultsRef = useRef(null);
 
   useEffect(() => {
-    if (!loading && place) {
-      const id = requestAnimationFrame(() =>
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-      );
-      return () => cancelAnimationFrame(id);
-    }
-  }, [loading, place]);
+    return () => clearTimeout(debounce.current);
+  }, []);
 
   async function handleInput(q) {
     setQuery(q);
-    setError("");
     if (!q.trim()) {
       setOpen(false);
       return;
@@ -295,99 +254,25 @@ export default function App() {
     }, 300);
   }
 
-  async function explore(raw) {
-    setLoading(true);
-    setError("");
-    setPlace(null);
-    setCountry(null);
-    setWeather(null);
-    setWiki(null);
-    setLandmarks([]);
+  function goSearch(value) {
+    const q = value.trim();
+    if (!q) return;
     setOpen(false);
-
-    try {
-      const cty = await getCountry(raw);
-      const latlng = cty.latlng;
-      const [weatherNow, wikiNow] = await Promise.all([
-        getWeather(latlng[0], latlng[1]),
-        getWiki(cty.capital || cty.name)
-      ]);
-      setCountry(cty);
-      setPlace({ type: "country" });
-      setWeather(weatherNow);
-      setWiki(wikiNow);
-      if (cty.capital) {
-        const cap = await searchCities(cty.capital);
-        const capPt = cap[0]
-          ? { lat: cap[0].latitude, lon: cap[0].longitude }
-          : { lat: latlng[0], lon: latlng[1] };
-        setLandmarks(
-          await getLandmarks(
-            [capPt, { lat: latlng[0], lon: latlng[1] }],
-            10,
-            cty.name
-          )
-        );
-      } else {
-        setLandmarks(
-          await getLandmarks([{ lat: latlng[0], lon: latlng[1] }], 10, cty.name)
-        );
-      }
-    } catch {
-      try {
-        const cities = await searchCities(raw);
-        if (!cities.length) throw new Error("not found");
-        const city = cities[0];
-        let cty = null;
-        try {
-          cty = await getCountry(city.country);
-        } catch {
-          cty = null;
-        }
-        const [weatherNow, wikiNow, ctyTmp] = await Promise.all([
-          getWeather(city.latitude, city.longitude),
-          getWiki(city.name),
-          cty
-            ? Promise.resolve(cty)
-            : getCountry(city.country_code).catch(() => null)
-        ]);
-        setCountry(ctyTmp);
-        setPlace({ type: "city", city });
-        setWeather(weatherNow);
-        setWiki(wikiNow);
-        setLandmarks(
-          await getLandmarks(
-            [{ lat: city.latitude, lon: city.longitude }],
-            10,
-            city.name
-          )
-        );
-      } catch {
-        setError(
-          "Could not find that place. Try a country like “India” or a city like “London”."
-        );
-      }
-    } finally {
-      setLoading(false);
-    }
+    navigate(`/search?q=${encodeURIComponent(q)}`);
   }
 
   function pickCity(city) {
     setQuery(city.name);
-    explore(city.name);
+    goSearch(city.name);
   }
 
   function onSearch(e) {
     e.preventDefault();
-    if (query.trim()) explore(query.trim());
+    goSearch(query);
   }
 
-  const isCity = place && place.type === "city";
-  const isCountry = place && place.type === "country";
-  const showResults = country || (isCity && place.city);
-
   return (
-    <div className="app">
+    <div className="app home">
       <section className="hero">
         <div className="hero-media" aria-hidden="true">
           {photoFailed ? <div className="hero-media-fallback" /> : (
@@ -402,31 +287,12 @@ export default function App() {
         </div>
 
         <header className="nav">
-          <a className="brand" href="/" onClick={(e) => e.preventDefault()}>
+          <a className="brand" href="/#/" onClick={(e) => e.preventDefault()}>
             <span className="brand-mark">
               <Icon name="globe" size={17} />
             </span>
             World Explorer
           </a>
-          <nav className="nav-links" aria-label="Primary">
-            <a className="nav-link active" href="#explore" aria-current="page">
-              Explore
-            </a>
-            <a className="nav-link" href="#destinations">
-              Destinations
-            </a>
-            <a className="nav-link" href="#about">
-              About
-            </a>
-          </nav>
-          <div className="nav-actions">
-            <button className="nav-icon-btn" type="button" aria-label="Search">
-              <Icon name="search" size={18} />
-            </button>
-            <button className="nav-icon-btn" type="button" aria-label="Open menu">
-              <Icon name="menu" size={19} />
-            </button>
-          </div>
         </header>
 
         <div className="hero-inner">
@@ -455,10 +321,9 @@ export default function App() {
             <button
               className="hero-submit"
               type="submit"
-              disabled={loading}
               aria-label="Explore your destination"
             >
-              {loading ? <span className="btn-spin" /> : <Icon name="arrow" size={18} />}
+              <Icon name="arrow" size={18} />
             </button>
             {open && suggestions.length > 0 && (
               <div className="suggestions">
@@ -468,16 +333,241 @@ export default function App() {
               </div>
             )}
           </form>
-
-          {error && (
-            <p className="error">
-              <Icon name="alert" size={16} /> {error}
-            </p>
-          )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function ResultsPage() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const q = params.get("q") || "";
+  const [query, setQuery] = useState(q);
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [place, setPlace] = useState(null);
+  const [country, setCountry] = useState(null);
+  const [weather, setWeather] = useState(null);
+  const [wiki, setWiki] = useState(null);
+  const [landmarks, setLandmarks] = useState([]);
+  const [error, setError] = useState("");
+  const debounce = useRef(null);
+  const resultsRef = useRef(null);
+  const run = useRef(0);
+
+  useEffect(() => {
+    setQuery(q);
+    if (q.trim()) {
+      explore(q);
+    } else {
+      setLoading(false);
+      setPlace(null);
+      setCountry(null);
+      setWeather(null);
+      setWiki(null);
+      setLandmarks([]);
+      setError("");
+    }
+  }, [q]);
+
+  useEffect(() => {
+    return () => clearTimeout(debounce.current);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && place) {
+      const id = requestAnimationFrame(() =>
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+      return () => cancelAnimationFrame(id);
+    }
+  }, [loading, place]);
+
+  async function handleInput(v) {
+    setQuery(v);
+    if (!v.trim()) {
+      setOpen(false);
+      return;
+    }
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(async () => {
+      try {
+        const res = await searchCities(v.trim());
+        setSuggestions(res);
+        setOpen(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+  }
+
+  async function explore(raw) {
+    const id = ++run.current;
+    setLoading(true);
+    setError("");
+    setPlace(null);
+    setCountry(null);
+    setWeather(null);
+    setWiki(null);
+    setLandmarks([]);
+    setOpen(false);
+
+    try {
+      const cty = await getCountry(raw);
+      if (run.current !== id) return;
+      const latlng = cty.latlng;
+      const [weatherNow, wikiNow] = await Promise.all([
+        getWeather(latlng[0], latlng[1]),
+        getWiki(cty.capital || cty.name)
+      ]);
+      if (run.current !== id) return;
+      setCountry(cty);
+      setPlace({ type: "country" });
+      setWeather(weatherNow);
+      setWiki(wikiNow);
+      if (cty.capital) {
+        const cap = await searchCities(cty.capital);
+        const capPt = cap[0]
+          ? { lat: cap[0].latitude, lon: cap[0].longitude }
+          : { lat: latlng[0], lon: latlng[1] };
+        if (run.current !== id) return;
+        setLandmarks(
+          await getLandmarks(
+            [capPt, { lat: latlng[0], lon: latlng[1] }],
+            10,
+            cty.name
+          )
+        );
+      } else {
+        if (run.current !== id) return;
+        setLandmarks(
+          await getLandmarks([{ lat: latlng[0], lon: latlng[1] }], 10, cty.name)
+        );
+      }
+    } catch {
+      try {
+        const cities = await searchCities(raw);
+        if (!cities.length) throw new Error("not found");
+        const city = cities[0];
+        let cty = null;
+        try {
+          cty = await getCountry(city.country);
+        } catch {
+          cty = null;
+        }
+        const [weatherNow, wikiNow, ctyTmp] = await Promise.all([
+          getWeather(city.latitude, city.longitude),
+          getWiki(city.name),
+          cty
+            ? Promise.resolve(cty)
+            : getCountry(city.country_code).catch(() => null)
+        ]);
+        if (run.current !== id) return;
+        setCountry(ctyTmp);
+        setPlace({ type: "city", city });
+        setWeather(weatherNow);
+        setWiki(wikiNow);
+        if (run.current !== id) return;
+        setLandmarks(
+          await getLandmarks(
+            [{ lat: city.latitude, lon: city.longitude }],
+            10,
+            city.name
+          )
+        );
+      } catch {
+        if (run.current !== id) return;
+        setError(
+          "Could not find that place. Try a country like “India” or a city like “London”."
+        );
+      }
+    } finally {
+      if (run.current === id) setLoading(false);
+    }
+  }
+
+  function pickCity(city) {
+    setQuery(city.name);
+    navigate(`/search?q=${encodeURIComponent(city.name)}`);
+  }
+
+  function onNavSearch(e) {
+    e.preventDefault();
+    const value = query.trim();
+    if (!value) return;
+    setOpen(false);
+    navigate(`/search?q=${encodeURIComponent(value)}`);
+  }
+
+  const isCity = place && place.type === "city";
+  const isCountry = place && place.type === "country";
+  const showResults = country || (isCity && place.city);
+
+  return (
+    <div className="app">
+      <header className="results-nav">
+        <Link className="brand" to="/" aria-label="World Explorer home">
+          <span className="brand-mark">
+            <Icon name="globe" size={17} />
+          </span>
+          <span className="brand-text">World Explorer</span>
+        </Link>
+        <form className="mini-search" onSubmit={onNavSearch} role="search">
+          <span className="hero-search-icon">
+            <Icon name="search" size={16} />
+          </span>
+          <input
+            value={query}
+            onChange={(e) => handleInput(e.target.value)}
+            onFocus={() => query.trim() && setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            placeholder="Search another place..."
+            aria-label="Search place"
+          />
+          <button className="mini-search-btn" type="submit" aria-label="Search">
+            <Icon name="search" size={16} />
+          </button>
+          {open && suggestions.length > 0 && (
+            <div className="suggestions">
+              {suggestions.map((s) => (
+                <Suggestion key={s.id} item={s} onPick={pickCity} />
+              ))}
+            </div>
+          )}
+        </form>
+        <Link className="nav-link" to="/">
+          Back to home
+        </Link>
+      </header>
+
+      {!q.trim() && (
+        <main className="content">
+          <section className="panel wiki">
+            <h3 className="panel-title">
+              <span className="pt-icon">
+                <Icon name="alert" size={14} />
+              </span>
+              Nothing to explore yet
+            </h3>
+            <p>Use the search box above to look up a country or city.</p>
+          </section>
+        </main>
+      )}
 
       {loading && <ResultsSkeleton />}
+
+      {!loading && error && (
+        <main className="content">
+          <p className="error">
+            <Icon name="alert" size={16} /> {error}
+          </p>
+          <button className="back-btn" type="button" onClick={() => navigate("/")}>
+            ← Back to home
+          </button>
+        </main>
+      )}
 
       {!loading && showResults && (
         <main className="content" ref={resultsRef}>
@@ -667,8 +757,6 @@ export default function App() {
         </main>
       )}
 
-      {!loading && !showResults && <Showcase />}
-
       <footer className="footer">
         <span>World Explorer — built with React & Vite</span>
         <div className="footer-sources">
@@ -679,5 +767,16 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/search" element={<ResultsPage />} />
+      </Routes>
+    </HashRouter>
   );
 }
